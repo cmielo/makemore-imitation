@@ -1,7 +1,5 @@
-import torch
 import random
-from parameters import block_size
-
+from training import *
 
 def build_dictionary(words):
     chars = sorted(list(set(''.join(words))))
@@ -35,4 +33,7 @@ if __name__ == '__main__':
     Xtr, Ytr = build_dataset(words[:l1])  # training set
     Xdev, Ydev = build_dataset(words[l1:l2])  # dev set
     Xte, Yte = build_dataset(words[l2:])  # test set
+
+    C, layers = initialize_nn(3)
+    train(C, layers, 10000, Xtr, Ytr)
 
