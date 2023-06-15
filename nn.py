@@ -44,27 +44,33 @@ class BatchNorm:
         # mean of activations that will be calculated alongside the training of nn
         self.mean_running = torch.zeros(dimension)
         # same for standard deviation
-        self.std_running = torch.ones(dimension)
+        self.var_running = torch.ones(dimension)
 
     def __call__(self, x):
         if self.training:
-            xmean = x.mean(0, keepdim=True)
-            xstd = x.std(0, keepdim=True)
+            if x.ndim == 2:
+                dim = 0  # dimension for mean for case where x has shape [A, B]
+            if x.ndim == 3:
+                dim = (0, 1)  # dimensions for case where x has shape [A, B ,C]
+
+            # if dimensionality of x is different from 2 or 3, then we get an error, which is desired
+            xmean = x.mean(dim, keepdim=True)  # batch mean for case where x has shape [A, B ,C]
+            xvar = x.var(dim, keepdim=True)  # batch variance
         else:
             xmean = self.mean_running
-            xstd = self.std_running
+            xvar = self.var_running
 
         # normalization of a batch,
         # -> norm := (X - μ)/σ so that it follows ~ N(0, 1)
         # -> result := gamma * norm + bias, so that neural network can make results more defuse/sharp/biased
-        normalized = (x - xmean) / (xstd + self.e)  # add 'e' so that you do not divide by 0 accidentally
+        normalized = (x - xmean) / torch.sqrt(xvar + self.e)  # add 'e' so that you do not divide by 0 accidentally
         self.out = self.gamma * normalized + self.beta
 
         if self.training:
             with torch.no_grad():
                 # dynamically update mean and std if during training
                 self.mean_running = (1 - self.momentum) * self.mean_running + self.momentum * xmean
-                self.std_running = (1 - self.momentum) * self.std_running + self.momentum * xstd
+                self.std_running = (1 - self.momentum) * self.var_running + self.momentum * xvar
         return self.out
 
     def parameters(self):
